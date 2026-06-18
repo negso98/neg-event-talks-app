@@ -22,6 +22,7 @@ const retryBtn = document.getElementById('retry-btn');
 const clearFiltersBtn = document.getElementById('clear-filters-btn');
 const searchInput = document.getElementById('search-input');
 const searchClearBtn = document.getElementById('search-clear-btn');
+const exportCsvBtn = document.getElementById('export-csv-btn');
 
 // Stats Elements
 const statTotal = document.getElementById('stat-total');
@@ -97,6 +98,9 @@ function setupEventListeners() {
 
     // Tweet submit
     tweetSubmitBtn.addEventListener('click', submitTweet);
+
+    // Export CSV
+    exportCsvBtn.addEventListener('click', exportToCSV);
 }
 
 // Fetch Release Notes from backend API
@@ -304,7 +308,7 @@ function renderGrid() {
             <div class="note-footer">
                 <button class="btn btn-secondary btn-copy" data-id="${update.id}">
                     <span class="material-symbols-outlined">content_copy</span>
-                    Copy Code
+                    Copy Text
                 </button>
                 <button class="btn btn-tweet-action btn-tweet-trigger" data-id="${update.id}">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -491,3 +495,50 @@ function showToast(message, iconName = 'check_circle', iconClass = 'text-green')
         toast.classList.add('hidden');
     }, 4000);
 }
+
+// Export filtered notes to CSV
+function exportToCSV() {
+    if (filteredUpdates.length === 0) {
+        showToast('No updates available to export!', 'warning', 'text-yellow');
+        return;
+    }
+    
+    // CSV headers
+    const headers = ['Date', 'Category', 'Description', 'Link'];
+    
+    // Map updates to CSV rows
+    const rows = filteredUpdates.map(update => {
+        // Escape content: double quotes are replaced with double double-quotes
+        const cleanDate = update.date.replace(/"/g, '""');
+        const cleanType = update.type.replace(/"/g, '""');
+        const cleanText = update.plainText.replace(/"/g, '""');
+        const cleanLink = update.link.replace(/"/g, '""');
+        
+        return `"${cleanDate}","${cleanType}","${cleanText}","${cleanLink}"`;
+    });
+    
+    // Combine headers and rows
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    // Generate filename based on date or active filter
+    let filename = "bigquery_release_notes";
+    if (currentFilter !== 'all') {
+        filename += `_${currentFilter.toLowerCase()}`;
+    }
+    filename += ".csv";
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast(`Exported ${filteredUpdates.length} updates to CSV!`, 'check_circle');
+}
+
